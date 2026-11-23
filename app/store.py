@@ -64,7 +64,27 @@ def upsert_chunks(
                 payload=payload,
             )
         )
-    client.upsert(collection_name=settings.collection, points=points)
+    if not points:
+        return 0
+    # A source filename represents one current document version in this demo.
+    # Commit the replacement points first, then remove old versions; if the
+    # upsert fails, previously indexed content is preserved.
+    client.upsert(collection_name=settings.collection, points=points, wait=True)
+    versions = {(p["source"], p["document_sha256"]) for p in payloads}
+    if len({source for source, _ in versions}) != len(versions):
+        # This should not be called with multiple versions of the same source.
+        raise ValueError("One batch cannot contain multiple versions of a source")
+    for source, document_sha in versions:
+        client.delete(
+            collection_name=settings.collection,
+            points_selector=models.FilterSelector(filter=models.Filter(
+                must=[models.FieldCondition(key="source", match=models.MatchValue(value=source))],
+                must_not=[models.FieldCondition(
+                    key="document_sha256", match=models.MatchValue(value=document_sha)
+                )],
+            )),
+            wait=True,
+        )
     return len(points)
 
 
