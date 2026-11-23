@@ -34,9 +34,9 @@ def _pages_from_pdf(path: str) -> list[tuple[int, str]]:
     return pages
 
 
-def ingest_pdf(path: str) -> int:
+def ingest_pdf(path: str, source_name: str | None = None) -> int:
     """Ingest a single PDF. Returns number of chunks stored."""
-    filename = os.path.basename(path)
+    filename = os.path.basename(source_name or path)
     client = get_client()
     ensure_collection(client)
 
