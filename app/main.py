@@ -79,13 +79,13 @@ def evaluate_ask(
     """
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="Question must not be empty.")
-    answer, chunks = answer_question_with_evidence(req.question)
+    answer, chunks, generation_mode = answer_question_with_evidence(req.question)
     return {
         "answer": answer.model_dump(),
         "retrieved_contexts": [
             {"text": c.text, "source": c.source, "page": c.page, "score": c.score}
             for c in chunks
         ],
-        "generation_mode": "llm" if settings.openai_api_key else "extractive-demo",
+        "generation_mode": generation_mode,
         "evidence_origin": "same-invocation-retrieval",
     }
