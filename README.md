@@ -42,6 +42,16 @@ User query
 
 **Portfolio demonstration, not a multi-user enterprise service.** API endpoints `/ask` and `/ingest` require `X-API-Key` matching `POLICYMIND_API_KEY`; unset credentials fail closed. Ingestion checks the PDF header and limits uploads to 15 MiB, but does not provide complete malware scanning, PDF sandboxing, authorization per document, or data retention controls. The standalone Streamlit UI **fails closed by default** and requires `POLICYMIND_ENABLE_LOCAL_UI=true` plus the shared `POLICYMIND_API_KEY` to run locally. This is not user-level authentication; **do not expose the UI publicly**. Deploy behind TLS and an identity-aware access layer before handling real policies. Citation metadata uses a sanitized upload basename rather than a temporary server path. Identical PDF re-ingestion uses stable content-addressed chunk IDs to avoid duplicate points for the same file version. **Older indexes are not migrated**; replacing a document with a different version does not yet remove its prior chunks. Rebuild demo indexes before relying on this feature. Relevance score is a heuristic, **not a calibrated confidence probability**; `grounded=True` does not prove claims are supported.
 
+## Live evaluation evidence (isolated deployments only)
+
+GuardEval can now request the **exact retrieved contexts used in the same answer-generation call**. The endpoint `POST /evaluation/ask` is **disabled by default**; it requires all three:
+
+- `POLICYMIND_ENABLE_EVAL_API=true`
+- A valid `X-API-Key` matching `POLICYMIND_API_KEY`
+- An independent `X-Eval-Key` matching `POLICYMIND_EVAL_KEY`
+
+Only use this endpoint with synthetic or explicitly authorized evaluation documents, in a private environment. It returns retrieved document text and can disclose sensitive information if exposed. For production evaluation, provide audited service-to-service identity, network isolation, access logging and redaction. The endpoint also returns a `generation_mode` flag: `extractive-demo` is not an LLM model-quality measurement.
+
 ## Setup
 
 ```bash
