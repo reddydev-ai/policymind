@@ -40,7 +40,7 @@ User query
 
 ## Security status
 
-**Portfolio demonstration, not a multi-user enterprise service.** API endpoints `/ask` and `/ingest` require `X-API-Key` matching `POLICYMIND_API_KEY`; unset credentials fail closed. Ingestion checks the PDF header and limits uploads to 15 MiB, but does not provide complete malware scanning, PDF sandboxing, authorization per document, or data retention controls. **Do not expose the standalone Streamlit UI publicly**, since it does not enforce API authentication. Deploy behind TLS and an identity-aware access layer before handling real policies. Citation metadata uses a sanitized upload basename rather than a temporary server path. Identical PDF re-ingestion uses stable content-addressed chunk IDs to avoid duplicate points for the same file version. **Older indexes are not migrated**; replacing a document with a different version does not yet remove its prior chunks. Rebuild demo indexes before relying on this feature. Relevance score is a heuristic, **not a calibrated confidence probability**; `grounded=True` does not prove claims are supported.
+**Portfolio demonstration, not a multi-user enterprise service.** API endpoints `/ask` and `/ingest` require `X-API-Key` matching `POLICYMIND_API_KEY`; unset credentials fail closed. Ingestion checks the PDF header and limits uploads to 15 MiB, but does not provide complete malware scanning, PDF sandboxing, authorization per document, or data retention controls. The standalone Streamlit UI **fails closed by default** and requires `POLICYMIND_ENABLE_LOCAL_UI=true` plus the shared `POLICYMIND_API_KEY` to run locally. This is not user-level authentication; **do not expose the UI publicly**. Deploy behind TLS and an identity-aware access layer before handling real policies. Citation metadata uses a sanitized upload basename rather than a temporary server path. Identical PDF re-ingestion uses stable content-addressed chunk IDs to avoid duplicate points for the same file version. **Older indexes are not migrated**; replacing a document with a different version does not yet remove its prior chunks. Rebuild demo indexes before relying on this feature. Relevance score is a heuristic, **not a calibrated confidence probability**; `grounded=True` does not prove claims are supported.
 
 ## Setup
 
@@ -68,7 +68,8 @@ curl -X POST http://localhost:8000/ask \
 
 ### Run the UI
 ```bash
-streamlit run streamlit_app.py
+POLICYMIND_ENABLE_LOCAL_UI=true streamlit run streamlit_app.py --server.address=127.0.0.1
+# Enter POLICYMIND_API_KEY in the password field; local demo only.
 ```
 
 ## Deployment
