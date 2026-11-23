@@ -64,7 +64,7 @@ def _confidence_from_score(score: float) -> float:
     return 1 / (1 + pow(2.718281828, -score))
 
 
-def answer_question(question: str) -> Answer:
+def answer_question_with_evidence(question: str) -> tuple[Answer, list[RetrievedChunk]]:
     chunks = retrieve(question)
     top_score = chunks[0].score if chunks else -10.0
     confidence = _confidence_from_score(top_score)
@@ -78,7 +78,7 @@ def answer_question(question: str) -> Answer:
             citations=[],
             confidence=round(confidence, 3),
             grounded=False,
-        )
+        ), chunks
 
     citations = [Citation(source=c.source, page=c.page, score=round(c.score, 3)) for c in chunks]
     llm = _llm()
@@ -92,7 +92,7 @@ def answer_question(question: str) -> Answer:
             citations=citations,
             confidence=round(confidence, 3),
             grounded=True,
-        )
+        ), chunks
 
     from langchain_core.prompts import ChatPromptTemplate  # lazy import
     context = _build_context(chunks)
@@ -109,4 +109,10 @@ def answer_question(question: str) -> Answer:
         citations=citations,
         confidence=round(confidence, 3),
         grounded=True,
-    )
+    ), chunks
+
+
+def answer_question(question: str) -> Answer:
+    """Public answer API preserves the original response shape."""
+    result, _evidence = answer_question_with_evidence(question)
+    return result
