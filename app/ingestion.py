@@ -5,6 +5,7 @@ RAG layer can return real citations.
 """
 from __future__ import annotations
 import os
+import hashlib
 
 import fitz  # PyMuPDF
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -12,6 +13,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from .config import get_settings
 from .embeddings import embed_dense, embed_sparse
 from .store import get_client, ensure_collection, upsert_chunks
+from .provenance import safe_source_name
 
 settings = get_settings()
 
@@ -24,28 +26,35 @@ _splitter = RecursiveCharacterTextSplitter(
 
 def _pages_from_pdf(path: str) -> list[tuple[int, str]]:
     """Return [(page_number, text), ...] with page numbers starting at 1."""
-    doc = fitz.open(path)
     pages: list[tuple[int, str]] = []
-    for i, page in enumerate(doc, start=1):
-        text = page.get_text("text").strip()
-        if text:
-            pages.append((i, text))
-    doc.close()
+    with fitz.open(path) as doc:
+        for i, page in enumerate(doc, start=1):
+            text = page.get_text("text").strip()
+            if text:
+                pages.append((i, text))
     return pages
 
 
-def ingest_pdf(path: str) -> int:
+def ingest_pdf(path: str, source_name: str | None = None) -> int:
     """Ingest a single PDF. Returns number of chunks stored."""
-    filename = os.path.basename(path)
+    filename = safe_source_name(source_name or os.path.basename(path))
+    with open(path, "rb") as document:
+        document_sha256 = hashlib.file_digest(document, "sha256").hexdigest()
     client = get_client()
     ensure_collection(client)
 
     texts: list[str] = []
     payloads: list[dict] = []
     for page_no, page_text in _pages_from_pdf(path):
-        for chunk in _splitter.split_text(page_text):
+        for chunk_index, chunk in enumerate(_splitter.split_text(page_text)):
             texts.append(chunk)
-            payloads.append({"text": chunk, "source": filename, "page": page_no})
+            payloads.append({
+                "text": chunk,
+                "source": filename,
+                "page": page_no,
+                "chunk_index": chunk_index,
+                "document_sha256": document_sha256,
+            })
 
     if not texts:
         return 0

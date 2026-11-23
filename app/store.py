@@ -1,8 +1,7 @@
 """Qdrant store: creates a hybrid collection (dense + sparse vectors) and exposes
 helpers to upsert chunks and run hybrid search with Reciprocal Rank Fusion (RRF)."""
 from __future__ import annotations
-import uuid
-from typing import Iterable
+from .provenance import point_id
 
 from qdrant_client import QdrantClient, models
 
@@ -51,16 +50,40 @@ def upsert_chunks(
     sparse_vectors: list[models.SparseVector],
     payloads: list[dict],
 ) -> int:
+    if not (len(dense_vectors) == len(sparse_vectors) == len(payloads)):
+        raise ValueError("Vector and payload counts must match; refusing partial ingestion")
     points = []
     for dvec, svec, payload in zip(dense_vectors, sparse_vectors, payloads):
         points.append(
             models.PointStruct(
-                id=str(uuid.uuid4()),
+                id=point_id(
+                    payload["source"], payload["document_sha256"],
+                    payload["page"], payload["chunk_index"],
+                ),
                 vector={DENSE_VECTOR: dvec, SPARSE_VECTOR: svec},
                 payload=payload,
             )
         )
-    client.upsert(collection_name=settings.collection, points=points)
+    if not points:
+        return 0
+    # A source filename represents one current document version in this demo.
+    versions = {(p["source"], p["document_sha256"]) for p in payloads}
+    if len({source for source, _ in versions}) != len(versions):
+        raise ValueError("One batch cannot contain multiple versions of a source")
+    # Commit the replacement points first, then remove old versions; if the
+    # upsert fails, previously indexed content is preserved.
+    client.upsert(collection_name=settings.collection, points=points, wait=True)
+    for source, document_sha in versions:
+        client.delete(
+            collection_name=settings.collection,
+            points_selector=models.FilterSelector(filter=models.Filter(
+                must=[models.FieldCondition(key="source", match=models.MatchValue(value=source))],
+                must_not=[models.FieldCondition(
+                    key="document_sha256", match=models.MatchValue(value=document_sha)
+                )],
+            )),
+            wait=True,
+        )
     return len(points)
 
 

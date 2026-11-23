@@ -38,12 +38,17 @@ User query
    ▼  FastAPI /ask  ·  Streamlit UI
 ```
 
+## Security status
+
+**Portfolio demonstration, not a multi-user enterprise service.** API endpoints `/ask` and `/ingest` require `X-API-Key` matching `POLICYMIND_API_KEY`; unset credentials fail closed. Ingestion checks the PDF header and limits uploads to 15 MiB, but does not provide complete malware scanning, PDF sandboxing, authorization per document, or data retention controls. The standalone Streamlit UI **fails closed by default** and requires `POLICYMIND_ENABLE_LOCAL_UI=true` plus the shared `POLICYMIND_API_KEY` to run locally. This is not user-level authentication; **do not expose the UI publicly**. Deploy behind TLS and an identity-aware access layer before handling real policies. Citation metadata uses a sanitized upload basename rather than a temporary server path. Identical PDF re-ingestion uses stable content-addressed chunk IDs to avoid duplicate points for the same file version. **Older indexes are not migrated**; replacing a document with a different version does not yet remove its prior chunks. Rebuild demo indexes before relying on this feature. Relevance score is a heuristic, **not a calibrated confidence probability**; `grounded=True` does not prove claims are supported.
+
 ## Setup
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # then add your OPENAI_API_KEY
+set -a; source .env; set +a  # export credentials for this shell (trusted local file only)
 ```
 
 ### Run the API
@@ -54,15 +59,17 @@ uvicorn app.main:app --reload
 
 Ingest a PDF and ask a question:
 ```bash
-curl -F "file=@vacation_policy.pdf" http://localhost:8000/ingest
+curl -H "X-API-Key: $POLICYMIND_API_KEY" -F "file=@vacation_policy.pdf" http://localhost:8000/ingest
 curl -X POST http://localhost:8000/ask \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: $POLICYMIND_API_KEY" \
   -d '{"question":"How many vacation days do new employees get?"}'
 ```
 
 ### Run the UI
 ```bash
-streamlit run streamlit_app.py
+POLICYMIND_ENABLE_LOCAL_UI=true streamlit run streamlit_app.py --server.address=127.0.0.1
+# Enter POLICYMIND_API_KEY in the password field; local demo only.
 ```
 
 ## Deployment
