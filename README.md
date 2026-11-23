@@ -38,6 +38,10 @@ User query
    ▼  FastAPI /ask  ·  Streamlit UI
 ```
 
+## Security status
+
+**Portfolio demonstration, not a multi-user enterprise service.** API endpoints `/ask` and `/ingest` require `X-API-Key` matching `POLICYMIND_API_KEY`; unset credentials fail closed. Ingestion checks the PDF header and limits uploads to 15 MiB, but does not provide complete malware scanning, PDF sandboxing, authorization per document, or data retention controls. **Do not expose the standalone Streamlit UI publicly**, since it does not enforce API authentication. Deploy behind TLS and an identity-aware access layer before handling real policies. Citation metadata preserves the original upload basename rather than a temporary server path. Relevance score is a heuristic, **not a calibrated confidence probability**; `grounded=True` does not prove claims are supported.
+
 ## Setup
 
 ```bash
@@ -54,9 +58,10 @@ uvicorn app.main:app --reload
 
 Ingest a PDF and ask a question:
 ```bash
-curl -F "file=@vacation_policy.pdf" http://localhost:8000/ingest
+curl -H "X-API-Key: $POLICYMIND_API_KEY" -F "file=@vacation_policy.pdf" http://localhost:8000/ingest
 curl -X POST http://localhost:8000/ask \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: $POLICYMIND_API_KEY" \
   -d '{"question":"How many vacation days do new employees get?"}'
 ```
 
