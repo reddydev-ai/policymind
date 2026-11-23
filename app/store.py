@@ -1,8 +1,7 @@
 """Qdrant store: creates a hybrid collection (dense + sparse vectors) and exposes
 helpers to upsert chunks and run hybrid search with Reciprocal Rank Fusion (RRF)."""
 from __future__ import annotations
-import uuid
-from typing import Iterable
+from .provenance import point_id
 
 from qdrant_client import QdrantClient, models
 
@@ -51,11 +50,16 @@ def upsert_chunks(
     sparse_vectors: list[models.SparseVector],
     payloads: list[dict],
 ) -> int:
+    if not (len(dense_vectors) == len(sparse_vectors) == len(payloads)):
+        raise ValueError("Vector and payload counts must match; refusing partial ingestion")
     points = []
     for dvec, svec, payload in zip(dense_vectors, sparse_vectors, payloads):
         points.append(
             models.PointStruct(
-                id=str(uuid.uuid4()),
+                id=point_id(
+                    payload["source"], payload["document_sha256"],
+                    payload["page"], payload["chunk_index"],
+                ),
                 vector={DENSE_VECTOR: dvec, SPARSE_VECTOR: svec},
                 payload=payload,
             )
