@@ -1,7 +1,14 @@
 # PolicyMind — Enterprise Policy RAG Assistant
 
-> **Product-management portfolio brief:** [Problem, users, success metrics, roadmap and limitations](docs/PRODUCT_CASE_STUDY.md). This is an independent prototype; no employer or customer outcome is claimed.
+> **AI product management perspective:** Verify policy answers rather than treating fluent text as proof. [Portfolio overview](https://github.com/reddydev-ai/guardeval/blob/main/PORTFOLIO.md) · [Product case study](docs/PRODUCT_CASE_STUDY.md) · [Technical setup](#setup)
 
+**What this shows:** an independent policy-document search prototype with PDF ingestion, Qdrant-backed retrieval, evidence citations and protected APIs. The key trade-off is *answer convenience versus verifiable source evidence*. **No employer deployment, adoption improvement or generalized model-quality result is claimed.**
+
+| Product question | Decision | Evidence |
+| --- | --- | --- |
+| Can a user verify the answer? | Return source and page with the answer | [Retrieval and answer implementation](app/rag.py) |
+| Can an operator replace a policy? | Upsert the new content and delete previous version chunks by source | [Store and regression tests](tests/test_store.py) |
+| Can evidence be inspected safely? | Disable evaluation disclosure by default and require two independent keys | [Evaluation security tests](tests/test_evaluation_security.py) |
 
 Upload internal HR / compliance / benefits policy documents, ask plain-English
 questions, and get **cited answers with a confidence score** and an honest
@@ -16,8 +23,8 @@ questions, and get **cited answers with a confidence score** and an honest
 |---|---|
 | **Hybrid search** (dense + sparse) | Dense embeddings handle meaning ("parental leave rules"); sparse BM25 handles exact terms ("clause 7b", "section 4.2"). Pure vector search misses the second kind. |
 | **RRF fusion** | Combines the two retrieval branches fairly before reranking. |
-| **BGE cross-encoder reranker** | Re-scores fused candidates and keeps the top-5. This is the single biggest precision win over a beginner RAG. |
-| **Confidence threshold + "I don't know"** | The system refuses to answer when retrieval is weak, instead of hallucinating. Production-maturity signal. |
+| **BGE cross-encoder reranker** | Re-scores fused candidates and keeps the top-5. Reranking is designed to improve candidate relevance; no independently measured general precision uplift is claimed. |
+| **Confidence threshold + "I don't know"** | The system refuses to answer when retrieval is weak, instead of hallucinating. A design goal, not a measured guarantee of correct abstention. |
 | **Page-level citations** | Every answer points back to a real filename + page number. |
 
 ## Architecture
@@ -43,7 +50,7 @@ User query
 
 ## Security status
 
-**Portfolio demonstration, not a multi-user enterprise service.** API endpoints `/ask` and `/ingest` require `X-API-Key` matching `POLICYMIND_API_KEY`; unset credentials fail closed. Ingestion checks the PDF header and limits uploads to 15 MiB, but does not provide complete malware scanning, PDF sandboxing, authorization per document, or data retention controls. The standalone Streamlit UI **fails closed by default** and requires `POLICYMIND_ENABLE_LOCAL_UI=true` plus the shared `POLICYMIND_API_KEY` to run locally. This is not user-level authentication; **do not expose the UI publicly**. Deploy behind TLS and an identity-aware access layer before handling real policies. Citation metadata uses a sanitized upload basename rather than a temporary server path. Identical PDF re-ingestion uses stable content-addressed chunk IDs to avoid duplicate points for the same file version. **Older indexes are not migrated**; replacing a document with a different version does not yet remove its prior chunks. Rebuild demo indexes before relying on this feature. Relevance score is a heuristic, **not a calibrated confidence probability**; `grounded=True` does not prove claims are supported.
+**Portfolio demonstration, not a multi-user enterprise service.** API endpoints `/ask` and `/ingest` require `X-API-Key` matching `POLICYMIND_API_KEY`; unset credentials fail closed. Ingestion checks the PDF header and limits uploads to 15 MiB, but does not provide complete malware scanning, PDF sandboxing, authorization per document, or data retention controls. The standalone Streamlit UI **fails closed by default** and requires `POLICYMIND_ENABLE_LOCAL_UI=true` plus the shared `POLICYMIND_API_KEY` to run locally. This is not user-level authentication; **do not expose the UI publicly**. Deploy behind TLS and an identity-aware access layer before handling real policies. Citation metadata uses a sanitized upload basename rather than a temporary server path. Identical PDF re-ingestion uses stable content-addressed chunk IDs to avoid duplicate points for the same file version. **Older legacy indexes are not automatically migrated**. New versions of a source remove the old version points after successful upsert in the tested demo path; concurrent updates, deletion, interrupted transactions and production lifecycle policy remain unverified. Relevance score is a heuristic, **not a calibrated confidence probability**; `grounded=True` does not prove claims are supported.
 
 ## Live evaluation evidence (isolated deployments only)
 
@@ -86,8 +93,7 @@ POLICYMIND_ENABLE_LOCAL_UI=true streamlit run streamlit_app.py --server.address=
 ```
 
 ## Deployment
-Deploy on **Railway** or **Render** (Dockerfile included). For real scale, point
-`QDRANT_URL` at a managed Qdrant instead of the local on-disk store.
+**No public backend is deployed or recommended at this stage.** The Dockerfile is for isolated demonstrations; public hosting would require identity-aware access, secure ingestion, data retention, request limits, observability and a security review. A managed Qdrant service would also require secure networking and access controls.
 
 ## Known limitations
 - Local on-disk Qdrant is for demo/small corpora. Use a Qdrant server past ~100k chunks.
