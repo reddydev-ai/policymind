@@ -13,9 +13,9 @@ from pydantic import BaseModel
 
 from .config import get_settings
 from .ingestion import ingest_pdf
-from .security import require_api_key
+from .security import require_api_key, require_eval_key
 from .provenance import safe_source_name
-from .rag import answer_question, Answer
+from .rag import answer_question, answer_question_with_evidence, Answer
 
 settings = get_settings()
 app = FastAPI(title="PolicyMind", version="1.0.0",
@@ -64,3 +64,28 @@ def ask(req: AskRequest, _auth: None = Depends(require_api_key)) -> Answer:
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="Question must not be empty.")
     return answer_question(req.question)
+
+
+@app.post("/evaluation/ask")
+def evaluate_ask(
+    req: AskRequest,
+    _auth: None = Depends(require_api_key),
+    _eval: None = Depends(require_eval_key),
+) -> dict:
+    """Opt-in, dual-key endpoint: one retrieval and answer-generation pass.
+
+    Returns the exact chunks used to construct the answer, not reference/gold
+    contexts. Do not expose outside isolated evaluation environments.
+    """
+    if not req.question.strip():
+        raise HTTPException(status_code=400, detail="Question must not be empty.")
+    answer, chunks, generation_mode = answer_question_with_evidence(req.question)
+    return {
+        "answer": answer.model_dump(),
+        "retrieved_contexts": [
+            {"text": c.text, "source": c.source, "page": c.page, "score": c.score}
+            for c in chunks
+        ],
+        "generation_mode": generation_mode,
+        "evidence_origin": "same-invocation-retrieval",
+    }

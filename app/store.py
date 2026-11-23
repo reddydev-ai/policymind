@@ -1,6 +1,7 @@
 """Qdrant store: creates a hybrid collection (dense + sparse vectors) and exposes
 helpers to upsert chunks and run hybrid search with Reciprocal Rank Fusion (RRF)."""
 from __future__ import annotations
+from functools import lru_cache
 from .provenance import point_id
 
 from qdrant_client import QdrantClient, models
@@ -10,6 +11,7 @@ from .config import get_settings
 settings = get_settings()
 
 
+@lru_cache(maxsize=1)
 def get_client() -> QdrantClient:
     """Returns a Qdrant client.
     - If QDRANT_URL is set -> connect to a real Qdrant server (production).
