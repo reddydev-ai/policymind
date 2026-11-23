@@ -8,6 +8,8 @@ class Settings(BaseModel):
     # --- LLM / embeddings ---
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     api_key: str = os.getenv("POLICYMIND_API_KEY", "")
+    eval_api_key: str = os.getenv("POLICYMIND_EVAL_KEY", "")
+    enable_eval_api: bool = os.getenv("POLICYMIND_ENABLE_EVAL_API", "").lower() == "true"
     chat_model: str = os.getenv("CHAT_MODEL", "gpt-4o")
     embed_model: str = os.getenv("EMBED_MODEL", "text-embedding-3-large")
     embed_dim: int = int(os.getenv("EMBED_DIM", "3072"))  # 3072 for text-embedding-3-large
