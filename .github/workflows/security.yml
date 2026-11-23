@@ -20,8 +20,8 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install minimal test dependencies
-        run: python -m pip install "pytest==8.3.4" "fastapi==0.115.6" "pydantic==2.13.4"
+        run: python -m pip install "pytest==8.3.4" "fastapi==0.115.6" "pydantic==2.13.4" "qdrant-client==1.12.2"
       - name: Syntax check
         run: python -m compileall -q app tests
       - name: Run security tests
-        run: python -m pytest -q tests/test_security.py tests/test_provenance.py
+        run: python -m pytest -q tests/test_security.py tests/test_provenance.py tests/test_store.py
