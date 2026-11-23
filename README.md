@@ -1,5 +1,8 @@
 # PolicyMind — Enterprise Policy RAG Assistant
 
+> **Product-management portfolio brief:** [Problem, users, success metrics, roadmap and limitations](docs/PRODUCT_CASE_STUDY.md). This is an independent prototype; no employer or customer outcome is claimed.
+
+
 Upload internal HR / compliance / benefits policy documents, ask plain-English
 questions, and get **cited answers with a confidence score** and an honest
 **"I don't know"** when the answer isn't supported by the documents.
