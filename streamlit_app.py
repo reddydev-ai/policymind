@@ -8,6 +8,7 @@ import tempfile
 import streamlit as st
 
 from app.config import get_settings
+from app.provenance import safe_source_name
 from app.ingestion import ingest_pdf
 from app.rag import answer_question
 
@@ -35,12 +36,23 @@ with st.sidebar:
     if st.button("Ingest", disabled=not files):
         with st.spinner("Indexing documents..."):
             for f in files:
+                data = f.read()
+                if len(data) > 15 * 1024 * 1024 or not data.startswith(b"%PDF-"):
+                    st.error(f"Rejected {f.name}: invalid PDF or file exceeds 15 MiB.")
+                    continue
+                try:
+                    source = safe_source_name(f.name)
+                except ValueError:
+                    st.error("Invalid PDF filename.")
+                    continue
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(f.read())
+                    tmp.write(data)
                     path = tmp.name
-                n = ingest_pdf(path)
-                os.unlink(path)
-                st.success(f"{f.name}: {n} chunks indexed")
+                try:
+                    n = ingest_pdf(path, source_name=source)
+                finally:
+                    os.unlink(path)
+                st.success(f"{source}: {n} chunks indexed")
 
 st.header("2. Ask a question")
 q = st.text_input("e.g. How many vacation days do new employees get?")
